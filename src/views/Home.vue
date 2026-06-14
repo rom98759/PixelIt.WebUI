@@ -1,7 +1,7 @@
 <template>
     <v-container class="home">
         <v-row>
-            <v-col cols="12" lg="3">
+            <v-col cols="12" md="6" lg="3">
                 <v-card class="pa-2" elevation="4">
                     <v-card-title>
                         <h2>System</h2>
@@ -15,7 +15,7 @@
                     <ListInfo :items="systemItems" />
                 </v-card>
             </v-col>
-            <v-col cols="12" lg="3">
+            <v-col cols="12" md="6" lg="3">
                 <v-card class="pa-2" elevation="4">
                     <v-card-title>
                         <h2>Liveview</h2>
@@ -65,8 +65,8 @@
                         <small>After activation, it can take up to one minute for the data to become visible.</small>
                     </v-card-text>
                     <div v-else>
-                        <p></p>                    
-                        <UserMap :coords="userMapData" height="500px" />
+                        <p></p>
+                        <UserMap :coords="userMapData" :height="userMapHeight" />
                     </div>
                 </v-card>
             </v-col>
@@ -77,7 +77,6 @@
 <script>
 import Log from '../components/Log';
 import ListInfo from '../components/ListInfo';
-import UserMap from '../components/UserMap';
 import Liveview from '../components/Liveview';
 
 export default {
@@ -85,7 +84,7 @@ export default {
     components: {
         Log,
         ListInfo,
-        UserMap,
+        UserMap: () => import('../components/UserMap'),
         Liveview,
     },
     computed: {
@@ -113,9 +112,9 @@ export default {
         userMapData() {
             return this.$store.state.userMapData.coords;
         },
-        userMapError() {            
-            return this.$store.state.userMapData.error;             
-        },  
+        userMapError() {
+            return this.$store.state.userMapData.error;
+        },
         isDemoMode() {
             return this.$demoMode;
         },
@@ -123,7 +122,15 @@ export default {
             return this.$store.state.liveviewData;
         },
         liveviewCanvasSettings() {
-            return this.$store.state.matrixSize;
+            return {
+                ...this.$store.state.matrixSize,
+                rectWidth: this.$vuetify.breakpoint.smAndDown ? 10 : 12,
+                rectHeight: this.$vuetify.breakpoint.smAndDown ? 10 : 12,
+                padding: 1,
+            };
+        },
+        userMapHeight() {
+            return this.$vuetify.breakpoint.smAndDown ? '280px' : '420px';
         },
         sendStatistics(){
             return this.$store.state.configData.sendTelemetry;

@@ -1,7 +1,7 @@
 <template>
     <v-app>
         <!-- Sidebar -->
-        <v-navigation-drawer v-model="drawer" app>
+        <v-navigation-drawer v-model="drawer" :temporary="isMobile" :permanent="!isMobile" app>
             <v-img class="mt-3" max-height="100" src="./assets/logo.png" contain></v-img>
             <nav-links :items="getNavLinks" />
         </v-navigation-drawer>
@@ -35,32 +35,43 @@ export default {
         // Get style cookie
         this.$vuetify.theme.dark = this.$cookies.get('theme_dark') ? this.$cookies.get('theme_dark') === 'true' : true;
 
-        getCurrentGitReleaseData(this);    
+        getCurrentGitReleaseData(this);
         sendTelemetry(this);
         getStatistics(this);
 
         // Check again every 15 minutes
-        setInterval(() => {
+        this.gitReleaseTimer = setInterval(() => {
             getCurrentGitReleaseData(this);
         }, 1000 * 60 * 15);
 
         // Check again every 15 minutes
-        setInterval(() => {
+        this.statisticsTimer = setInterval(() => {
             getStatistics(this);
         }, 1000 * 60 * 15);
 
         // Send again every 12 houres
-        setInterval(() => {
+        this.telemetryTimer = setInterval(() => {
             sendTelemetry(this);
         }, 1000 * 60 * 60 * 12);
+    },
+    beforeDestroy() {
+        clearInterval(this.gitReleaseTimer);
+        clearInterval(this.statisticsTimer);
+        clearInterval(this.telemetryTimer);
     },
     components: {
         NavLinks,
     },
     data: () => ({
         drawer: true,
+        gitReleaseTimer: null,
+        statisticsTimer: null,
+        telemetryTimer: null,
     }),
     computed: {
+        isMobile() {
+            return this.$vuetify.breakpoint.mdAndDown;
+        },
         darkModeActive() {
             return this.$vuetify.theme.dark;
         },
@@ -83,7 +94,16 @@ export default {
             this.$cookies.set('theme_dark', this.$vuetify.theme.dark);
         },
     },
+    mounted() {
+        this.drawer = !this.isMobile;
+    },
     watch: {
+        isMobile: {
+            immediate: true,
+            handler(newValue) {
+                this.drawer = !newValue;
+            },
+        },
         '$store.state.gitVersion': function (newVal) {
             if (this.$store.state.version) {
                 //this.$store.state.newVersionAvailable = newVal != this.$store.state.version;
@@ -118,8 +138,8 @@ async function sendTelemetry(vue) {
             }
             // send telemetry
             fetch(`${vue.$apiServerBaseURL}/telemetry`, {
-                method: 'POST',      
-                headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Client': vue.$client},      
+                method: 'POST',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Client': vue.$client},
                 body: vue.$store.state.telemetryData,
             });
         } else {
@@ -140,8 +160,8 @@ async function getStatistics(vue) {
     } catch (error) {
         console.log(`getUserMapData: error (${error})`);
     }
-   
-    try {      
+
+    try {
         vue.$store.state.statistics = await (await fetch(`${vue.$apiServerBaseURL}/statistics?uuid=${uuid}`)).json();
     } catch (error) {
         console.log(`getStatistics: error (${error})`);
@@ -164,8 +184,8 @@ function getUUID(vue){
     return JSON.parse(vue.$store.state.telemetryData).uuid
 }
 
-// 0 if a = b 
-// 1 if a > b 
+// 0 if a = b
+// 1 if a > b
 // -1 if a < b
 const compareVersions = ((prep, l, i, r) => (a, b) =>{
     a = prep(a);

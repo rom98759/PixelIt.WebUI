@@ -1,19 +1,19 @@
 <template>
     <v-container class="options">
         <v-row>
-            <v-col cols="12" lg="4" class="text-center">
+            <v-col cols="12" md="6" lg="4" class="text-center">
                 <ButtonCondition color="success" :condition="isValid && sockedIsConnected" text="Save config" :onclick="save" icon="mdi-content-save" />
             </v-col>
-            <v-col cols="12" lg="4" class="text-center">
+            <v-col cols="12" md="6" lg="4" class="text-center">
                 <ButtonConfirm color="orange" :condition="sockedIsConnected" text="Wifi Reset" :onclickAgree="wifiReset" disagreeText="Cancel" agreeText="Wifi Reset" title="Wifi Reset!" :cardText="['You are about to delete your WIFI settings, the rest of your settings are not affected!', 'Are you sure you want to continue?']" icon="mdi-wifi-cancel" />
             </v-col>
-            <v-col cols="12" lg="4" class="text-center">
+            <v-col cols="12" md="6" lg="4" class="text-center">
                 <ButtonConfirm color="red" :condition="sockedIsConnected" text="Factory Reset" :onclickAgree="factoryReset" disagreeText="Cancel" agreeText="Factory Reset" title="Factory Reset!" :cardText="['You are about to delete all your settings, it will also affect the wifi setting!', 'Are you sure you want to continue?']" icon="mdi-harddisk-remove" />
             </v-col>
         </v-row>
         <v-form v-model="isValid">
             <v-row>
-                <v-col cols="12" lg="4">
+                <v-col cols="12" md="6" xl="4">
                     <v-card class="pa-1" elevation="4">
                         <v-card-title>
                             <h2>Defaults</h2>
@@ -47,24 +47,24 @@
                         <hr />
                         <v-switch v-model="config.matrixBrightnessAutomatic" label="Auto brightness active" dense></v-switch>
                         <v-row>
-                            <v-col cols="6" lg="6">
+                            <v-col cols="12" sm="6">
                                 <v-text-field v-model="config.mbaDimMin" label="Min bright" hint="0 to 255" type="number" :disabled="!config.matrixBrightnessAutomatic" :rules="config.matrixBrightnessAutomatic ? [rules.required, rules.min0, rules.max255, rules.noDecimals] : []" dense></v-text-field>
                             </v-col>
-                            <v-col cols="6" lg="6">
+                            <v-col cols="12" sm="6">
                                 <v-text-field v-model="config.mbaDimMax" label="Max bright" hint="0 to 255" type="number" :disabled="!config.matrixBrightnessAutomatic" :rules="config.matrixBrightnessAutomatic ? [rules.required, rules.min0, rules.max255, rules.noDecimals] : []" dense></v-text-field>
                             </v-col>
                         </v-row>
                         <v-row>
-                            <v-col cols="6" lg="6">
+                            <v-col cols="12" sm="6">
                                 <v-text-field v-model="config.mbaLuxMin" label="From lux" type="number" :disabled="!config.matrixBrightnessAutomatic" :rules="config.matrixBrightnessAutomatic ? [rules.required, rules.min0, rules.noDecimals] : []" dense></v-text-field>
                             </v-col>
-                            <v-col cols="6" lg="6">
+                            <v-col cols="12" sm="6">
                                 <v-text-field v-model="config.mbaLuxMax" label="To lux" type="number" :disabled="!config.matrixBrightnessAutomatic" :rules="config.matrixBrightnessAutomatic ? [rules.required, rules.min0, rules.noDecimals] : []" dense></v-text-field>
                             </v-col>
                         </v-row>
                     </v-card>
                 </v-col>
-                <v-col cols="12" lg="4">
+                <v-col cols="12" md="6" xl="4">
                     <v-card class="pa-2" elevation="4">
                         <v-card-title>
                             <h2>Clock</h2>
@@ -91,7 +91,7 @@
                         <v-text-field v-model="config.clockAutoFallbackTime" type="number" label="Fallback time" hint="the unit is seconds (s)" suffix="seconds" :disabled="!config.clockAutoFallbackActive" :rules="config.clockSwitchAktiv ? [rules.required, rules.min0] : []"></v-text-field>
                     </v-card>
                 </v-col>
-                <v-col cols="12" lg="4">
+                <v-col cols="12" md="6" xl="4">
                     <v-card class="pa-2" elevation="4">
                         <v-card-title>
                             <h2>MQTT</h2>

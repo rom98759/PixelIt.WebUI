@@ -2,7 +2,7 @@
     <v-container class="statistics">
         <div v-if="statsError || sendStatistics == false">
             <v-row>
-                <v-col cols="12" lg="12">
+                <v-col cols="12">
                     <v-card class="pa-2" elevation="4">
                         <v-card-text class="text-md-center">
                             <h2>Activate the telemetry data to see the statistics.</h2>
@@ -16,7 +16,7 @@
         </div>
         <div v-else>
             <v-row>
-                <v-col cols="12" lg="12">
+                <v-col cols="12">
                     <v-card class="pa-2" elevation="4">
                         <v-card-text class="text-md-center">
                             These statistics are created with the telemetry data of the PixelIts that have reported in the last 30 days.<br>
@@ -25,64 +25,64 @@
                     </v-card>
                 </v-col>
             </v-row>
-            <v-row>
-                <v-col cols="12" lg="4">
+            <v-row dense>
+                <v-col cols="12" md="6" lg="4">
                     <v-card class="pa-1" elevation="4">
                         <v-card-title>
                             <h2>Boards</h2>
                         </v-card-title>
-                        <hr />              
-                        <apexchart height="600px" width="100%" type="bar" :options="chartOptions" :series="buildStats"></apexchart>
-                    </v-card>                   
+                        <hr />
+                        <apexchart :height="chartHeight" width="100%" type="bar" :options="chartOptions" :series="buildStats"></apexchart>
+                    </v-card>
                 </v-col>
-                <v-col cols="12" lg="4">
+                <v-col cols="12" md="6" lg="4">
                     <v-card class="pa-2" elevation="4">
                         <v-card-title>
                             <h2>Versions</h2>
                         </v-card-title>
-                        <hr />                      
-                        <apexchart height="600px" width="100%" type="bar" :options="chartOptions" :series="versionStats"></apexchart>                  
+                        <hr />
+                        <apexchart :height="chartHeight" width="100%" type="bar" :options="chartOptions" :series="versionStats"></apexchart>
                     </v-card>
                 </v-col>
-                <v-col cols="12" lg="4">
+                <v-col cols="12" md="12" lg="4">
                     <v-card class="pa-2" elevation="4">
                         <v-card-title>
                             <h2>Sensors</h2>
                         </v-card-title>
-                        <hr />                      
-                        <apexchart height="600px" width="100%" type="bar" :options="chartOptions" :series="sensorStats"></apexchart>                  
+                        <hr />
+                        <apexchart :height="chartHeight" width="100%" type="bar" :options="chartOptions" :series="sensorStats"></apexchart>
                     </v-card>
                 </v-col>
             </v-row>
-            <v-row>
+            <v-row dense>
                 <v-col cols="12" lg="8">
                     <v-card class="pa-2" elevation="4">
                         <v-card-title>
                             <h2>Countries</h2>
                         </v-card-title>
-                        <hr />                    
-                        <apexchart height="600px" type="donut" :options="countryChartOptions" :series="countryStats"></apexchart>     
-                    </v-card>               
+                        <hr />
+                        <apexchart :height="chartHeight" type="donut" :options="countryChartOptions" :series="countryStats"></apexchart>
+                    </v-card>
                 </v-col>
                 <v-col cols="12" lg="4">
                     <v-card class="pa-2" elevation="4">
                         <v-card-title>
                             <h2>Matrix Types</h2>
                         </v-card-title>
-                        <hr />                      
-                        <apexchart height="600px" width="100%" type="bar" :options="chartOptions" :series="matrixStats"></apexchart>                  
+                        <hr />
+                        <apexchart :height="chartHeight" width="100%" type="bar" :options="chartOptions" :series="matrixStats"></apexchart>
                     </v-card>
                 </v-col>
             </v-row>
-            <v-row>
-                <v-col cols="12" lg="12">
+            <v-row dense>
+                <v-col cols="12">
                     <v-card class="pa-2" elevation="4">
                         <v-card-title>
                             <h2>Usermap</h2>
                         </v-card-title>
-                        <hr />                        
+                        <hr />
                         <p></p>
-                        <UserMap :mapZoom= 3  :coords="userMapData" height="600px" />
+                        <UserMap :mapZoom="3" :coords="userMapData" :height="mapHeight" />
                     </v-card>
                 </v-col>
             </v-row>
@@ -91,60 +91,61 @@
 </template>
 
 <script>
-import UserMap from '../components/UserMap';
+import VueApexCharts from 'vue-apexcharts';
+
+function toSeries(items, field) {
+    if (!items) {
+        return [];
+    }
+
+    return [{
+        name: 'Count',
+        data: items.map((entry) => ({
+            x: entry[field],
+            y: entry.count,
+        })),
+    }];
+}
 
 export default {
     name: 'Statistics',
-     data: () => ({        
+     data: () => ({
     }),
     components: {
-        UserMap,
+        UserMap: () => import('../components/UserMap'),
+        apexchart: VueApexCharts,
     },
     computed: {
+        chartHeight() {
+            return this.$vuetify.breakpoint.smAndDown ? '360px' : '600px';
+        },
+        mapHeight() {
+            return this.$vuetify.breakpoint.smAndDown ? '360px' : '600px';
+        },
         userMapData() {
             return this.$store.state.userMapData.coords;
         },
         buildStats() {
-            if (this.$store.state.statistics.buildStats){
-                return [ { name: 'Count', data: this.$store.state.statistics.buildStats
-                    .map(({build: x, count})=>({count, x}))
-                    .map(({count: y, x})=>({y, x}))}];
-            }
-            return [];           
-        },  
+            return toSeries(this.$store.state.statistics.buildStats, 'build');
+        },
         versionStats() {
-            if (this.$store.state.statistics.versionStats){
-                return [ { name: 'Count', data: this.$store.state.statistics.versionStats
-                    .map(({version: x, count})=>({count, x}))
-                    .map(({count: y, x})=>({y, x}))}];
-            }
-            return [];           
-        }, 
+            return toSeries(this.$store.state.statistics.versionStats, 'version');
+        },
         sensorStats() {
-            if (this.$store.state.statistics.sensorStats){
-                return [ { name: 'Count', data: this.$store.state.statistics.sensorStats
-                    .map(({sensor: x, count})=>({count, x}))
-                    .map(({count: y, x})=>({y, x}))}];
-            }
-            return [];           
-        }, 
+            return toSeries(this.$store.state.statistics.sensorStats, 'sensor');
+        },
         matrixStats() {
-            if (this.$store.state.statistics.matrixStats){
-                return [ { name: 'Count', data: this.$store.state.statistics.matrixStats
-                    .map(({matrix: x, count})=>({count, x}))
-                    .map(({count: y, x})=>({y, x}))}];
-            }
-            return [];           
-        }, 
+            return toSeries(this.$store.state.statistics.matrixStats, 'matrix');
+        },
         countryStats() {
             if (this.$store.state.statistics.countryStats){
-                return  this.$store.state.statistics.countryStats.map(x=> x.count) ;
+                return this.$store.state.statistics.countryStats.map((item) => item.count);
             }
-            return [];           
+            return [];
         },
         countryChartOptions(){
-            return { 
-                labels: this.$store.state.statistics.countryStats ? this.$store.state.statistics.countryStats.map(x=> x.country) : [],
+            return {
+                labels: this.$store.state.statistics.countryStats ? this.$store.state.statistics.countryStats.map((item) => item.country) : [],
                 theme: {
                     mode: this.$vuetify.theme.dark ? 'dark' : 'light',
                     palette: 'palette10',
@@ -154,13 +155,13 @@ export default {
                     dropShadow: {
                         enabled: false,
                     }
-                }, 
+                },
                 plotOptions: {
-                    pie: {                        
+                    pie: {
                         expandOnClick: true,
                         donut: {
                             size: '0%',
-                            labels: {                               
+                            labels: {
                                 show: false,
                             }
                         }
@@ -169,11 +170,11 @@ export default {
             };
         },
         chartOptions(){
-            return {                
+            return {
                 plotOptions: {
                     bar: {
                         horizontal: false,
-                        distributed: true,         
+                        distributed: true,
                     },
                 },
                 dataLabels: {
@@ -191,19 +192,19 @@ export default {
                     dropShadow: {
                         enabled: false,
                     }
-                } 
+                }
             };
-        },  
-        statsError() {            
-            return this.$store.state.statistics.error;             
-        },  
+        },
+        statsError() {
+            return this.$store.state.statistics.error;
+        },
         sendStatistics(){
             return this.$store.state.configData.sendTelemetry;
         }
     },
-    methods: {       
+    methods: {
     },
-    watch: {        
+    watch: {
     },
 };
 </script>

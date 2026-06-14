@@ -14,7 +14,7 @@
             <v-divider></v-divider>
 
             <v-card-text>
-                <BmpCanvas class="float-right" :bmp="bmp" height="80" :width="bmp.sizeX == 8 ? '80' : '160'" />
+                <BmpCanvas class="float-right" :bmp="bmp" :animate="true" height="80" :width="bmp.sizeX == 8 ? '80' : '160'" />
                 <p></p>
                 Icon-ID: {{ bmp.id }}<br />
                 Added by: {{ bmp.username }}<br />

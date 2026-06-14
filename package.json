@@ -8,6 +8,8 @@
         "serve-win": "set NODE_OPTIONS=--openssl-legacy-provider && vue-cli-service serve",
         "build": "export NODE_OPTIONS=--openssl-legacy-provider && vue-cli-service build",
         "build-win": "set NODE_OPTIONS=--openssl-legacy-provider && vue-cli-service build",
+        "test": "node tests/bitmap-utils.test.js",
+        "test:bitmap": "node tests/bitmap-utils.test.js",
         "lint": "export NODE_OPTIONS=--openssl-legacy-provider && vue-cli-service lint",
         "lint-win": "set NODE_OPTIONS=--openssl-legacy-provider && vue-cli-service lint"
     },

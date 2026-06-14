@@ -1,55 +1,47 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import Home from '../views/Home.vue'
-import Options from '../views/Options.vue'
-import SensorsButtons from '../views/SensorsButtons.vue'
-import TestArea from '../views/TestArea.vue'
-import Statistics from '../views/Statistics.vue'
-import Update from '../views/Update.vue'
-import Gallery from '../views/Gallery.vue'
-import Creator from '../views/Creator.vue'
 
 Vue.use(VueRouter)
 
 const routes = [{
     path: '/',
     name: 'Home',
-    component: Home
+    component: () => import('../views/Home.vue')
 },
 {
     path: '/options',
     name: 'Options',
-    component: Options
+    component: () => import('../views/Options.vue')
 },
 {
     path: '/sensorsbuttons',
     name: 'Sensors & Buttons',
-    component: SensorsButtons
+    component: () => import('../views/SensorsButtons.vue')
 },
 {
     path: '/testarea',
     name: 'TestArea',
-    component: TestArea
+    component: () => import('../views/TestArea.vue')
 },
 {
     path: '/statistics',
     name: 'Statistics',
-    component: Statistics
+    component: () => import('../views/Statistics.vue')
 },
 {
     path: '/update',
     name: 'Update',
-    component: Update
+    component: () => import('../views/Update.vue')
 },
 {
     path: '/gallery',
     name: 'Gallery',
-    component: Gallery
+    component: () => import('../views/Gallery.vue')
 },
 {
     path: '/creator',
     name: 'Creator',
-    component: Creator
+    component: () => import('../views/Creator.vue')
 },
 ]
 

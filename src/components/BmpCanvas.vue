@@ -9,6 +9,10 @@ export default {
             type: Object,
             required: true,
         },
+        animate: {
+            type: Boolean,
+            default: false,
+        },
         height: {
             type: String,
             required: false,
@@ -19,56 +23,57 @@ export default {
         },
     },
     directives: {
-        insertbmp: function (canvasElement, binding) {
-            let bmpArrayString = binding.value.rgB565Array;
-            const sizeX = binding.value.sizeX;
-            const sizeY = binding.value.sizeY;
+        insertbmp: {
+            inserted(canvasElement, binding, vnode) {
+                let bmpArrayString = binding.value.rgB565Array;
+                const sizeX = binding.value.sizeX;
+                const sizeY = binding.value.sizeY;
+                const shouldAnimate = vnode.context && vnode.context.animate;
 
-            if (bmpArrayString.endsWith(',')) {
-                bmpArrayString = bmpArrayString.slice(0, -1);
-            }
-
-            const bmpArray = JSON.parse(`[${bmpArrayString}]`);
-            let bmpsLoopCounter = 0;
-            let bmpsLoopInterval;
-            if (bmpArray.length > 1) {
-                if (bmpsLoopInterval) {
-                    clearInterval(bmpsLoopInterval);
+                if (bmpArrayString.endsWith(',')) {
+                    bmpArrayString = bmpArrayString.slice(0, -1);
                 }
-                bmpsLoopInterval = setInterval(() => {
-                    if (bmpArray.length == bmpsLoopCounter) {
-                        bmpsLoopCounter = 0;
-                    }
-                    drawCanvas(bmpArray[bmpsLoopCounter]);
-                    bmpsLoopCounter++;
-                }, 250);
-                for (const bmp of bmpArray) {
-                    drawCanvas(bmp);
-                }
-            } else {
-                drawCanvas(bmpArray[0]);
-            }
 
-            function drawCanvas(bmp) {
-                const ctx = canvasElement.getContext('2d');
-                const canvasWidth = canvasElement.width;
-                const canvasHeight = canvasElement.height;
-                const size = canvasWidth / sizeX;
+                const bmpArray = JSON.parse(`[${bmpArrayString}]`);
 
-                ctx.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
+                function drawCanvas(bmp) {
+                    const ctx = canvasElement.getContext('2d');
+                    const canvasWidth = canvasElement.width;
+                    const canvasHeight = canvasElement.height;
+                    const size = canvasWidth / sizeX;
 
-                const width = sizeX;
-                const height = sizeX == 8 ? sizeY : sizeY + 6;
-                let i = 0;
-                for (let y = sizeX == 8 ? 0 : 6; y < height; y++) {
-                    for (let x = 0; x < width; x++) {
-                        const rgb = RGB565IntToRGB(bmp[i++]);
-                        let color = RGBToHEX(rgb[0], rgb[1], rgb[2]);
-                        ctx.fillStyle = color;
-                        ctx.fillRect(x * size, y * size, size, size);
+                    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+                    const width = sizeX;
+                    const height = sizeX == 8 ? sizeY : sizeY + 6;
+                    let i = 0;
+                    for (let y = sizeX == 8 ? 0 : 6; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const rgb = RGB565IntToRGB(bmp[i++]);
+                            const color = RGBToHEX(rgb[0], rgb[1], rgb[2]);
+                            ctx.fillStyle = color;
+                            ctx.fillRect(x * size, y * size, size, size);
+                        }
                     }
                 }
-            }
+
+                if (shouldAnimate && bmpArray.length > 1) {
+                    let frameIndex = 0;
+                    drawCanvas(bmpArray[frameIndex]);
+                    canvasElement.__bmpLoopInterval = setInterval(() => {
+                        frameIndex = (frameIndex + 1) % bmpArray.length;
+                        drawCanvas(bmpArray[frameIndex]);
+                    }, 250);
+                } else {
+                    drawCanvas(bmpArray[0]);
+                }
+            },
+            unbind(canvasElement) {
+                if (canvasElement.__bmpLoopInterval) {
+                    clearInterval(canvasElement.__bmpLoopInterval);
+                    canvasElement.__bmpLoopInterval = null;
+                }
+            },
         },
     },
 };

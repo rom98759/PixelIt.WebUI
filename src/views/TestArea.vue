@@ -1,7 +1,7 @@
 <template>
     <v-container class="home">
-        <v-row>
-            <v-col cols="12" lg="4">
+        <v-row dense>
+            <v-col cols="12" md="6" xl="4">
                 <v-card class="pa-2" elevation="4">
                     <v-card-title>
                         <h2>Liveview</h2>
@@ -24,7 +24,7 @@
                     </div>
                 </v-card>
             </v-col>
-            <v-col cols="12" lg="4">
+            <v-col cols="12" md="6" xl="4">
                 <v-card class="pa-2" elevation="4">
                     <v-card-title>
                         <h2>Text / Brightness</h2>
@@ -40,7 +40,7 @@
                     </div>
                 </v-card>
             </v-col>
-            <v-col cols="12" lg="4">
+            <v-col cols="12" md="12" xl="4">
                 <v-card class="pa-2" elevation="4">
                     <v-card-title>
                         <h2>Bitmap Array</h2>

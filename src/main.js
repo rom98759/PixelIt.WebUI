@@ -1,4 +1,3 @@
-import '@babel/polyfill';
 import 'mutationobserver-shim';
 import Vue from 'vue';
 import App from './App.vue';
@@ -7,10 +6,7 @@ import store from './store';
 import vuetify from './plugins/vuetify';
 import VueCookies from 'vue-cookies';
 import VueNativeSock from 'vue-native-websocket';
-import VueSpinners from 'vue-spinners';
-import 'leaflet/dist/leaflet.css';
 import demoJSON from '../public/demoData/demo.json';
-import VueApexCharts from 'vue-apexcharts'
 
 if (process.env.VUE_APP_PIXELIT_HOST !== undefined) {
     Vue.prototype.$pixelitHost = process.env.VUE_APP_PIXELIT_HOST;
@@ -26,7 +22,6 @@ if (process.env.VUE_APP_API_SERVER !== undefined) {
 
 Vue.prototype.$client = 'PixelIt-Webui';
 
-Vue.use(VueSpinners);
 Vue.use(VueCookies);
 
 // Demo mode
@@ -46,11 +41,9 @@ else {
 
 Vue.$cookies.config('10y');
 Vue.config.productionTip = false;
-Vue.component('apexchart', VueApexCharts)
 new Vue({
     router,
     store,
     vuetify,
-    VueApexCharts,
     render: (h) => h(App),
 }).$mount('#app');

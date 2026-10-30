@@ -8,8 +8,12 @@
                 <fold :loading="isLoading"></fold>
                 Loading...
             </v-col>
-            <v-col v-for="bmp in getBMPs" :key="bmp.id" cols="6" lg="2">
-                <v-card class="pa-2" elevation="4">
+            <v-col v-if="loadError" cols="12" class="text-center">
+                Could not load the gallery.
+                <v-btn text @click="loadBMPs">Retry</v-btn>
+            </v-col>
+            <v-col v-for="bmp in visibleBMPs" :key="bmp.id" cols="6" lg="2">
+                <v-card class="pa-2 gallery-card" elevation="4">
                     <div class="text-center">
                         {{ bmp.name }}
                     </div>
@@ -29,6 +33,23 @@
                     </div>
                 </v-card>
             </v-col>
+            <v-col v-if="!isLoading && !loadError && getBMPs.length === 0" cols="12" class="text-center">
+                No matching bitmaps found.
+            </v-col>
+            <v-col v-show="hasMoreBMPs" cols="12" class="text-center">
+                <div ref="loadMoreTrigger">
+                    <v-row v-if="automaticLoading" aria-hidden="true">
+                        <v-col v-for="placeholder in Math.min(6, getBMPs.length - visibleCount)" :key="placeholder" cols="6" lg="2">
+                            <div class="gallery-placeholder">
+                                <div class="placeholder-title"></div>
+                                <div class="placeholder-preview"></div>
+                                <div class="placeholder-actions"></div>
+                            </div>
+                        </v-col>
+                    </v-row>
+                    <v-btn v-else text @click="showMoreBMPs">Load more</v-btn>
+                </div>
+            </v-col>
         </v-row>
     </v-container>
 </template>
@@ -36,21 +57,74 @@
 <script>
 import BmpCanvas from '../components/BmpCanvas';
 import BmpDialog from '../components/BmpDialog';
+
+const BATCH_SIZE = 24;
+let pendingBMPsRequest = null;
 export default {
-    name: 'Home',
+    name: 'Gallery',
     created: function () {
-        getBMPsFromAPI(this.$store.state);
+        this.loadBMPs();
+    },
+    mounted() {
+        if (typeof IntersectionObserver !== 'undefined') {
+            this.automaticLoading = true;
+            this.loadMoreObserver = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    this.showMoreBMPs();
+                }
+            }, { rootMargin: '0px 0px 1800px 0px' });
+            this.observeLoadMore();
+        }
+    },
+    beforeDestroy() {
+        if (this.loadMoreObserver) this.loadMoreObserver.disconnect();
     },
     data: function () {
         return {
             message: '',
+            visibleCount: BATCH_SIZE,
+            automaticLoading: false,
+            isLoading: false,
+            loadError: false,
         };
     },
     components: {
         BmpCanvas,
         BmpDialog,
     },
+    watch: {
+        message() {
+            this.visibleCount = BATCH_SIZE;
+        },
+        visibleBMPs() {
+            // Recheck after each batch, even when the trigger stays in a tall viewport.
+            this.$nextTick(this.observeLoadMore);
+        },
+    },
     methods: {
+        observeLoadMore() {
+            if (!this.loadMoreObserver || this._isBeingDestroyed || this._isDestroyed) return;
+            this.loadMoreObserver.disconnect();
+            if (this.hasMoreBMPs && this.$refs.loadMoreTrigger) {
+                this.loadMoreObserver.observe(this.$refs.loadMoreTrigger);
+            }
+        },
+        showMoreBMPs() {
+            this.visibleCount = Math.min(this.visibleCount + BATCH_SIZE, this.getBMPs.length);
+        },
+        async loadBMPs() {
+            if (this.$store.state.bmpsFromAPI.length) return;
+            this.isLoading = true;
+            this.loadError = false;
+            try {
+                this.$store.state.bmpsFromAPI = await getBMPsFromAPI();
+            } catch (error) {
+                console.error('Could not load gallery', error);
+                this.loadError = true;
+            } finally {
+                this.isLoading = false;
+            }
+        },
         copyText(value, event) {
             navigator.clipboard.writeText(value);
             console.log(event);
@@ -92,10 +166,16 @@ export default {
     },
     computed: {
         getBMPs() {
-            return this.$store.state.bmpsFromAPI.filter((x) => x.name.toLowerCase().includes(this.message.toLowerCase()) || x.id == this.message);
+            const bmps = this.$store.state.bmpsFromAPI;
+            if (!this.message) return bmps;
+            const query = this.message.toLowerCase();
+            return bmps.filter((x) => x.name.toLowerCase().includes(query) || x.id == this.message);
         },
-        isLoading() {
-            return this.$store.state.bmpsFromAPI.length == 0;
+        hasMoreBMPs() {
+            return this.visibleCount < this.getBMPs.length;
+        },
+        visibleBMPs() {
+            return this.getBMPs.slice(0, this.visibleCount);
         },
         sockedIsConnected() {
             return this.$store.state.socket.isConnected;
@@ -103,17 +183,61 @@ export default {
     },
 };
 
-async function getBMPsFromAPI(state) {
-    try {
-        state.bmpsFromAPI = await (await fetch('https://pixelit.bastelbunker.de/api/GetBMPAll')).json();
-    } catch (error) {
-        console.log(`getBMPsFromAPI: error (${error})`);
-        state.bmpsFromAPI = [];
+function getBMPsFromAPI() {
+    if (!pendingBMPsRequest) {
+        pendingBMPsRequest = fetch('https://pixelit.bastelbunker.de/api/GetBMPAll')
+            .then((response) => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            // Gallery records are read-only. Avoid observing every bitmap field in Vue.
+            .then((bmps) => Object.freeze(bmps.map((bmp) => Object.freeze(bmp))))
+            .finally(() => {
+                pendingBMPsRequest = null;
+            });
     }
+    return pendingBMPsRequest;
 }
 </script>
 
 <style scoped>
+.gallery-card {
+    animation: gallery-appear 160ms ease-out;
+}
+.gallery-placeholder {
+    height: 300px;
+    padding: 12px;
+    border-radius: 4px;
+    background: rgba(128, 128, 128, 0.08);
+}
+.placeholder-title,
+.placeholder-preview,
+.placeholder-actions {
+    background: rgba(128, 128, 128, 0.14);
+    border-radius: 4px;
+}
+.placeholder-title {
+    width: 70%;
+    height: 20px;
+    margin: 0 auto 24px;
+}
+.placeholder-preview {
+    height: 150px;
+    margin-bottom: 24px;
+}
+.placeholder-actions {
+    height: 36px;
+}
+@keyframes gallery-appear {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .gallery-card {
+        animation: none;
+    }
+}
+
 canvas {
     padding-left: 0;
     padding-right: 0;

@@ -50,14 +50,15 @@
                             </div>
                             <v-chip small outlined>{{ frames.length }} {{ frames.length === 1 ? 'frame' : 'frames' }}</v-chip>
                         </div>
-                        <div class="frame-list" role="group" aria-label="Animation frames">
+                        <div class="frame-list" :class="{ 'frame-list-dragging': draggedFrame !== null }" role="group" aria-label="Animation frames">
                             <button v-for="(frame, index) in frames" :key="index" type="button"
                                 class="frame-tile" :class="{ 'frame-tile-active': selectedFrame === index, 'frame-dragging': draggedFrame === index,
-                                    'frame-drop-before': dropPosition === index, 'frame-drop-after': dropPosition === frames.length && index === frames.length - 1 }"
-                                :draggable="!animationError && frames.length > 1"
-                                @dragstart="startFrameDrag($event, index)" @dragend="endFrameDrag"
-                                @dragover="overFrame($event, index)" @drop="dropFrame($event)"
-                                :aria-label="'Edit frame ' + (index + 1)" :aria-pressed="selectedFrame === index" @click="selectFrame(index)">
+                                    'frame-reorderable': !animationError && frames.length > 1, 'frame-drop-before': dropPosition === index, 'frame-drop-after': dropPosition === frames.length && index === frames.length - 1 }"
+                                :draggable="false" :data-frame-index="index"
+                                @dragstart.prevent @pointerdown="startFrameDrag($event, index)"
+                                @pointermove="overFrame" @pointerup="dropFrame"
+                                @pointercancel="endFrameDrag" @lostpointercapture="endFrameDrag"
+                                :aria-label="'Edit frame ' + (index + 1)" :aria-pressed="selectedFrame === index" @click="selectFrameFromClick(index)">
                                 <span class="frame-thumbnail">
                                     <span v-for="(pixel, pixelIndex) in frame" :key="pixelIndex" :style="{ backgroundColor: pixelColor(pixel) }"></span>
                                 </span>
@@ -67,6 +68,13 @@
                                 <v-icon>mdi-plus</v-icon>
                                 <span class="frame-caption">New</span>
                             </button>
+                        </div>
+                        <div v-if="draggedFrame !== null" class="frame-tile frame-drag-preview" aria-hidden="true"
+                            :style="{ left: frameDragPosition.x + 'px', top: frameDragPosition.y + 'px' }">
+                            <span class="frame-thumbnail">
+                                <span v-for="(pixel, pixelIndex) in frames[draggedFrame]" :key="pixelIndex" :style="{ backgroundColor: pixelColor(pixel) }"></span>
+                            </span>
+                            <span class="frame-caption">{{ String(draggedFrame + 1).padStart(2, '0') }}</span>
                         </div>
                         <div class="frame-toolbar">
                             <span class="text-caption text--secondary">Editing frame {{ selectedFrame + 1 }}</span>
@@ -185,6 +193,9 @@ export default {
             previewTimer: null,
             animationError: '',
             draggedFrame: null,
+            framePointer: null,
+            frameDragPosition: { x: 0, y: 0 },
+            suppressFrameClick: false,
             dropPosition: null,
             tool: 'pen',
             onionSkin: false,
@@ -203,6 +214,7 @@ export default {
         this.restoreDraft32();
     },
     beforeDestroy() {
+        this.endFrameDrag();
         this.stopPreview();
     },
     computed: {
@@ -420,38 +432,65 @@ export default {
             this.stopPreview();
             this.togglePreview();
         },
-        startFrameDrag(event, index) {
-            if (this.animationError) {
-                event.preventDefault();
+        selectFrameFromClick(index) {
+            if (this.suppressFrameClick) {
+                this.suppressFrameClick = false;
                 return;
             }
-            this.stopPreview();
-            this.draggedFrame = index;
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', String(index));
+            this.selectFrame(index);
         },
-        overFrame(event, index) {
-            if (this.draggedFrame === null || this.animationError) return;
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'move';
+        startFrameDrag(event, index) {
+            this.suppressFrameClick = false;
+            if (event.button !== 0 || !event.isPrimary || this.animationError || this.frames.length < 2) return;
             const bounds = event.currentTarget.getBoundingClientRect();
-            this.dropPosition = index + (event.clientX >= bounds.left + bounds.width / 2 ? 1 : 0);
+            this.framePointer = {
+                id: event.pointerId, index, x: event.clientX, y: event.clientY,
+                offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+        },
+        overFrame(event) {
+            const pointer = this.framePointer;
+            if (!pointer || pointer.id !== event.pointerId || this.animationError) return;
+            this.frameDragPosition = { x: event.clientX - pointer.offsetX, y: event.clientY - pointer.offsetY };
+            if (this.draggedFrame === null) {
+                if (Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) < 5) return;
+                this.stopPreview();
+                this.draggedFrame = pointer.index;
+                document.body.classList.add('creator-frame-grabbing');
+            }
+            const list = event.currentTarget.closest('.frame-list');
+            const bounds = list.getBoundingClientRect();
+            if (event.clientX < bounds.left + 24) list.scrollLeft -= 12;
+            if (event.clientX > bounds.right - 24) list.scrollLeft += 12;
+            this.dropPosition = null;
+            if (event.clientY < bounds.top || event.clientY > bounds.bottom) return;
+            const tiles = Array.from(list.querySelectorAll('[data-frame-index]'));
+            const target = tiles.find(tile => {
+                const rect = tile.getBoundingClientRect();
+                return event.clientX < rect.left + rect.width / 2;
+            });
+            this.dropPosition = target ? Number(target.dataset.frameIndex) : this.frames.length;
         },
         dropFrame(event) {
-            if (this.draggedFrame === null || this.dropPosition === null || this.animationError) {
-                this.endFrameDrag();
-                return;
-            }
-            event.preventDefault();
+            if (!this.framePointer || this.framePointer.id !== event.pointerId) return;
             const source = this.draggedFrame;
-            const target = this.dropPosition - (this.dropPosition > source ? 1 : 0);
+            const position = this.dropPosition;
+            this.suppressFrameClick = source !== null;
             this.endFrameDrag();
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+            if (source === null || position === null || this.animationError) return;
+            const target = position - (position > source ? 1 : 0);
             this.selectFrame(source);
             this.moveFrame(target - source);
         },
         endFrameDrag() {
+            this.framePointer = null;
             this.draggedFrame = null;
             this.dropPosition = null;
+            if (typeof document !== 'undefined') document.body.classList.remove('creator-frame-grabbing');
         },
         stopPreview() {
             if (this.livePreview) this.sendLiveFrame(this.previewFrame, true);
@@ -625,8 +664,21 @@ function hexToRgb(hex) {
     transition: border-color .15s, background-color .15s;
 }
 .frame-tile:hover { background: rgba(128, 128, 128, .1); }
-.frame-tile[draggable="true"] { cursor: grab; }
+.frame-reorderable { cursor: grab; touch-action: pan-x; user-select: none; }
+.frame-reorderable:active,
+.frame-list-dragging,
+.frame-list-dragging * { cursor: grabbing !important; }
 .frame-dragging { opacity: .4; }
+.frame-drag-preview {
+    position: fixed;
+    z-index: 10000;
+    width: 76px;
+    pointer-events: none;
+    text-align: center;
+    background: var(--v-background-base, #212121);
+    border-color: var(--v-primary-base, #1976d2);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+}
 .frame-drop-before::before,
 .frame-drop-after::after {
     content: '';
@@ -686,4 +738,9 @@ function hexToRgb(hex) {
     margin-right: auto;
     display: block;
 }
+</style>
+
+<style>
+body.creator-frame-grabbing,
+body.creator-frame-grabbing * { cursor: grabbing !important; user-select: none !important; }
 </style>

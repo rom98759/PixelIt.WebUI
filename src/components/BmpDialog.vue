@@ -1,7 +1,7 @@
 <template>
     <v-dialog v-model="dialog" width="500">
         <template v-slot:activator="{ on, attrs }">
-            <v-btn icon v-bind="attrs" v-on="on" class="float-left" title="More information">
+            <v-btn icon v-bind="attrs" v-on="on" class="float-left" title="More information" aria-label="More information">
                 <v-icon>mdi-information-outline</v-icon>
             </v-btn>
         </template>

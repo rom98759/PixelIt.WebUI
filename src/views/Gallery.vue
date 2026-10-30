@@ -1,30 +1,27 @@
 <template>
-    <v-container class="gallery">
+    <v-container class="gallery app-page">
         <v-row>
             <v-col cols="12">
                 <v-text-field v-model="message" v-if="!isLoading" prepend-inner-icon="mdi-magnify" single-line outlined filled hide-details auto-grow label="Search for name or ID" type="text"></v-text-field>
             </v-col>
-            <v-col v-if="isLoading" cols="12" class="text-center">
-                <fold :loading="isLoading"></fold>
-                Loading...
+            <v-col v-for="n in (isLoading ? 6 : 0)" :key="'loading-' + n" cols="6" md="4" lg="2">
+                <v-skeleton-loader type="image, article" aria-label="Loading gallery" />
             </v-col>
             <v-col v-if="loadError" cols="12" class="text-center">
                 Could not load the gallery.
                 <v-btn text @click="loadBMPs">Retry</v-btn>
             </v-col>
             <v-col v-for="bmp in visibleBMPs" :key="bmp.id" cols="6" lg="2">
-                <v-card class="pa-2 gallery-card" elevation="4">
+                <v-card class="ui-panel gallery-card" elevation="2">
                     <div class="text-center">
                         {{ bmp.name }}
                     </div>
-                    <hr />
-                    <p></p>
+                    <v-divider class="my-4" />
                     <BmpCanvas :bmp="bmp" />
                     <p></p>
-                    <!-- <hr /> -->
                     <div class="text-center">
                         <BmpDialog :bmp="bmp" />
-                        <v-btn icon @click="sendBitmap(bmp.rgB565Array, bmp.sizeX)" :disabled="!sockedIsConnected" class="float-right" title="Show on PixelIt">
+                        <v-btn icon @click="sendBitmap(bmp.rgB565Array, bmp.sizeX)" :disabled="!sockedIsConnected" class="float-right" title="Show on PixelIt" aria-label="Show on PixelIt">
                             <v-icon>mdi-arrow-right-circle-outline</v-icon>
                         </v-btn>
                     </div>
@@ -55,12 +52,16 @@
 </template>
 
 <script>
+import actionFeedback from '../mixins/actionFeedback';
+import { notify } from '../utils/feedback';
 import BmpCanvas from '../components/BmpCanvas';
 import BmpDialog from '../components/BmpDialog';
 
 const BATCH_SIZE = 24;
 let pendingBMPsRequest = null;
 export default {
+    mixins: [actionFeedback],
+    feedbackActions: { sendBitmap: 'Bitmap sent to PixelIt.' },
     name: 'Gallery',
     created: function () {
         this.loadBMPs();
@@ -125,12 +126,11 @@ export default {
                 this.isLoading = false;
             }
         },
-        copyText(value, event) {
-            navigator.clipboard.writeText(value);
-            console.log(event);
-            setTimeout(() => {
-                event.target.blur();
-            }, 200);
+        async copyText(value) {
+            try {
+                await navigator.clipboard.writeText(String(value));
+                notify('Bitmap ID copied.', 'success');
+            } catch (error) { notify('Could not copy the ID. Select and copy it manually.', 'error'); }
         },
         sendBitmap(rgB565Array, sizeX) {
             if (rgB565Array.endsWith(',')) {

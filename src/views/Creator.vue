@@ -1,5 +1,5 @@
 <template>
-    <v-container class="gallery">
+    <v-container class="gallery app-page">
         <v-row>
             <v-col cols="12" lg="12">
                 <v-bottom-navigation :value="pixelMode" color="primary">
@@ -17,7 +17,7 @@
         </v-row>
         <v-row v-if="pixelMode == 0">
             <v-col cols="12" lg="4" offset-lg="2">
-                <v-card class="pa-3" elevation="4">
+                <v-card class="ui-panel" elevation="2">
                     <div class="editor-tools mb-3">
                         <v-btn-toggle v-model="tool" mandatory dense color="primary">
                             <v-btn value="pen" aria-label="Pencil" title="Pencil"><v-icon small>mdi-pencil</v-icon></v-btn>
@@ -108,14 +108,14 @@
                 </v-card>
             </v-col>
             <v-col cols="12" lg="4">
-                <v-card class="pa-3" elevation="4">
+                <v-card class="ui-panel" elevation="2">
                     <v-color-picker v-model="colors" mode="hexa" dot-size="20" show-swatches swatches-max-height="280"></v-color-picker>
                 </v-card>
             </v-col>
         </v-row>
         <v-row v-if="pixelMode == 1">
             <v-col cols="12" lg="8" offset-lg="0">
-                <v-card class="pa-3" elevation="4">
+                <v-card class="ui-panel" elevation="2">
                     <div class="editor-tools mb-3">
                         <v-btn-toggle v-model="tool" mandatory dense color="primary">
                             <v-btn value="pen" aria-label="Pencil" title="Pencil"><v-icon small>mdi-pencil</v-icon></v-btn>
@@ -155,7 +155,7 @@
                 </v-card>
             </v-col>
             <v-col cols="12" lg="4">
-                <v-card class="pa-3" elevation="4">
+                <v-card class="ui-panel" elevation="2">
                     <v-color-picker v-model="colors" mode="hexa" dot-size="20" show-swatches swatches-max-height="270"></v-color-picker>
                 </v-card>
             </v-col>

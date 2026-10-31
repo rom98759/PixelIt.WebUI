@@ -1,8 +1,14 @@
 <template>
     <v-container class="gallery app-page">
         <v-row>
-            <v-col cols="12">
-                <v-text-field v-model="message" v-if="!isLoading" prepend-inner-icon="mdi-magnify" single-line outlined filled hide-details auto-grow label="Search for name or ID" type="text"></v-text-field>
+            <v-col v-if="!isLoading" cols="12" md="6">
+                <v-text-field v-model="message" prepend-inner-icon="mdi-magnify" single-line outlined filled hide-details auto-grow label="Search for name or ID" type="text"></v-text-field>
+            </v-col>
+            <v-col v-if="!isLoading" cols="6" md="3">
+                <v-select v-model="animationFilter" :items="animationFilters" label="Animation" prepend-inner-icon="mdi-animation-play" outlined filled hide-details></v-select>
+            </v-col>
+            <v-col v-if="!isLoading" cols="6" md="3">
+                <v-select v-model="sizeFilter" :items="sizeFilters" label="Size" prepend-inner-icon="mdi-image-size-select-large" outlined filled hide-details></v-select>
             </v-col>
             <v-col v-for="n in (isLoading ? 6 : 0)" :key="'loading-' + n" cols="6" md="4" lg="2">
                 <v-skeleton-loader type="image, article" aria-label="Loading gallery" />
@@ -86,6 +92,13 @@ export default {
     data: function () {
         return {
             message: '',
+            animationFilter: 'all',
+            sizeFilter: 'all',
+            animationFilters: [
+                { text: 'All bitmaps', value: 'all' },
+                { text: 'Animated', value: 'animated' },
+                { text: 'Not animated', value: 'static' },
+            ],
             openBitmapId: null,
             visibleCount: BATCH_SIZE,
             automaticLoading: false,
@@ -100,6 +113,12 @@ export default {
     },
     watch: {
         message() {
+            this.visibleCount = BATCH_SIZE;
+        },
+        animationFilter() {
+            this.visibleCount = BATCH_SIZE;
+        },
+        sizeFilter() {
             this.visibleCount = BATCH_SIZE;
         },
         visibleBMPs() {
@@ -173,11 +192,31 @@ export default {
         },
     },
     computed: {
+        sizeFilters() {
+            const sizes = new Map();
+            this.$store.state.bmpsFromAPI.forEach((bmp) => {
+                const width = Number(bmp.sizeX);
+                const height = Number(bmp.sizeY);
+                if (Number.isInteger(width) && width > 0 && Number.isInteger(height) && height > 0) {
+                    sizes.set(`${width}x${height}`, { width, height });
+                }
+            });
+            return [{ text: 'All sizes', value: 'all' }, ...Array.from(sizes.values())
+                .sort((a, b) => a.width - b.width || a.height - b.height)
+                .map(({ width, height }) => ({ text: `${width} × ${height}`, value: `${width}x${height}` }))];
+        },
         getBMPs() {
             const bmps = this.$store.state.bmpsFromAPI;
-            if (!this.message) return bmps;
+            if (!this.message && this.animationFilter === 'all' && this.sizeFilter === 'all') return bmps;
             const query = this.message.toLowerCase();
-            return bmps.filter((x) => x.name.toLowerCase().includes(query) || x.id == this.message);
+            return bmps.filter((bmp) => {
+                const matchesSearch = !query || bmp.name.toLowerCase().includes(query) || bmp.id == this.message;
+                const matchesAnimation = this.animationFilter === 'all'
+                    || Boolean(bmp.animated) === (this.animationFilter === 'animated');
+                const matchesSize = this.sizeFilter === 'all'
+                    || `${Number(bmp.sizeX)}x${Number(bmp.sizeY)}` === this.sizeFilter;
+                return matchesSearch && matchesAnimation && matchesSize;
+            });
         },
         hasMoreBMPs() {
             return this.visibleCount < this.getBMPs.length;

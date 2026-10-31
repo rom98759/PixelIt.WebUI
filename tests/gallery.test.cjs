@@ -116,6 +116,62 @@ function load(file, context) {
         gallery.message = ''; await Vue.nextTick(); gallery._render();
         assert.equal(gallery.visibleBMPs.length, 24, 'Clearing search restores the initial batch');
         assert(gallery.hasMoreBMPs);
+        // Animation filtering must combine with name/ID search across the complete cache.
+        records.splice(0, records.length, ...Array.from({ length: 80 }, (_, id) => ({
+            id, name: id >= 60 ? 'Rocket' : 'Other', animated: id % 2 === 0,
+            sizeX: String([8, 16, 32][id % 3]), sizeY: 8,
+        })));
+        gallery.visibleCount = 72;
+        gallery.animationFilter = 'animated'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.visibleCount, 24, 'Changing the animation filter resets the batch');
+        assert.equal(gallery.getBMPs.length, 40);
+        assert(gallery.getBMPs.every(bmp => bmp.animated));
+        assert(gallery.hasMoreBMPs);
+        gallery.showMoreBMPs();
+        assert.equal(gallery.visibleBMPs.length, 40, 'Scrolling stays within the selected filter');
+        gallery.message = 'rOcKeT'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 10);
+        assert(gallery.getBMPs.every(bmp => bmp.id >= 60 && bmp.animated));
+        gallery.animationFilter = 'static'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 10);
+        assert(gallery.getBMPs.every(bmp => bmp.id >= 60 && !bmp.animated));
+        gallery.message = '78'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 0, 'An exact ID must also respect the animation filter');
+        gallery.animationFilter = 'animated'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.visibleBMPs[0].id, 78);
+        gallery.animationFilter = 'all'; await Vue.nextTick();
+        assert.equal(gallery.getBMPs.length, 1, 'Changing the filter preserves the search text');
+        gallery.message = ''; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 80, 'All bitmaps restores animated and static records');
+        records.push({ id: 80, name: 'Tall', animated: false, sizeX: 8, sizeY: '16' });
+        await Vue.nextTick();
+        assert.deepEqual(Array.from(gallery.sizeFilters, option => option.value),
+            ['all', '8x8', '8x16', '16x8', '32x8'], 'Size options are unique, sorted and include both dimensions');
+        gallery.visibleCount = 72;
+        gallery.sizeFilter = '8x8'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.visibleCount, 24, 'Changing the size filter resets the batch');
+        assert.equal(gallery.getBMPs.length, 27);
+        assert(gallery.hasMoreBMPs);
+        gallery.showMoreBMPs(); assert.equal(gallery.visibleBMPs.length, 27);
+        gallery.animationFilter = 'animated'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 14);
+        gallery.message = 'rocket'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 4, 'Size, animation and name search combine');
+        assert.equal(gallery.sizeFilters.length, 5, 'Search must not remove size options');
+        gallery.message = '78'; await Vue.nextTick();
+        assert.equal(gallery.visibleBMPs[0].id, 78);
+        gallery.sizeFilter = '32x8'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 0, 'Exact ID must respect the selected size');
+        assert.equal(gallery.message, '78');
+        assert.equal(gallery.animationFilter, 'animated');
+        gallery.message = ''; gallery.animationFilter = 'static'; gallery.sizeFilter = '8x16';
+        await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.visibleBMPs.length, 1);
+        assert.equal(gallery.visibleBMPs[0].id, 80, 'Same width with a different height is a distinct size');
+        gallery.sizeFilter = 'all'; await Vue.nextTick();
+        assert.equal(gallery.getBMPs.length, 41, 'All sizes preserves the animation filter');
+        gallery.animationFilter = 'all'; await Vue.nextTick(); gallery._render();
+        assert.equal(gallery.getBMPs.length, 81);
         assert.equal(renderErrors.length, 0, renderErrors.map(error => error.message).join(', '));
     } finally {
         Vue.config.errorHandler = previousErrorHandler;

@@ -12,23 +12,25 @@
                 <v-btn text @click="loadBMPs">Retry</v-btn>
             </v-col>
             <v-col v-for="bmp in visibleBMPs" :key="bmp.id" cols="6" lg="2">
-                <v-card class="ui-panel gallery-card" elevation="2">
-                    <div class="text-center">
-                        {{ bmp.name }}
-                    </div>
-                    <v-divider class="my-4" />
-                    <BmpCanvas :bmp="bmp" />
-                    <p></p>
-                    <div class="text-center">
-                        <BmpDialog :bmp="bmp" />
-                        <v-btn icon @click="sendBitmap(bmp.rgB565Array, bmp.sizeX)" :disabled="!sockedIsConnected" class="float-right" title="Show on PixelIt" aria-label="Show on PixelIt">
-                            <v-icon>mdi-arrow-right-circle-outline</v-icon>
-                        </v-btn>
-                    </div>
-                    <div class="text-center">
-                        <v-text-field prepend-inner-icon="mdi-identifier" rounded dense hide-details readonly :value="bmp.id" append-outer-icon="mdi-content-copy" @click:append-outer="copyText(bmp.id, $event)"></v-text-field>
-                    </div>
-                </v-card>
+                <GalleryViewportItem :pinned="openBitmapId === bmp.id">
+                    <v-card class="ui-panel gallery-card" elevation="2">
+                        <div class="text-center">
+                            {{ bmp.name }}
+                        </div>
+                        <v-divider class="my-4" />
+                        <BmpCanvas :bmp="bmp" />
+                        <p></p>
+                        <div class="text-center">
+                            <BmpDialog :bmp="bmp" @dialog-change="openBitmapId = $event ? bmp.id : null" />
+                            <v-btn icon @click="sendBitmap(bmp.rgB565Array, bmp.sizeX)" :disabled="!sockedIsConnected" class="float-right" title="Show on PixelIt" aria-label="Show on PixelIt">
+                                <v-icon>mdi-arrow-right-circle-outline</v-icon>
+                            </v-btn>
+                        </div>
+                        <div class="text-center">
+                            <v-text-field prepend-inner-icon="mdi-identifier" rounded dense hide-details readonly :value="bmp.id" append-outer-icon="mdi-content-copy" @click:append-outer="copyText(bmp.id, $event)"></v-text-field>
+                        </div>
+                    </v-card>
+                </GalleryViewportItem>
             </v-col>
             <v-col v-if="!isLoading && !loadError && getBMPs.length === 0" cols="12" class="text-center">
                 No matching bitmaps found.
@@ -36,7 +38,7 @@
             <v-col v-show="hasMoreBMPs" cols="12" class="text-center">
                 <div ref="loadMoreTrigger">
                     <v-row v-if="automaticLoading" aria-hidden="true">
-                        <v-col v-for="placeholder in Math.min(6, getBMPs.length - visibleCount)" :key="placeholder" cols="6" lg="2">
+                        <v-col v-for="placeholder in placeholderCount" :key="placeholder" cols="6" lg="2">
                             <div class="gallery-placeholder">
                                 <div class="placeholder-title"></div>
                                 <div class="placeholder-preview"></div>
@@ -56,6 +58,7 @@ import actionFeedback from '../mixins/actionFeedback';
 import { notify } from '../utils/feedback';
 import BmpCanvas from '../components/BmpCanvas';
 import BmpDialog from '../components/BmpDialog';
+import GalleryViewportItem from '../components/GalleryViewportItem';
 
 const BATCH_SIZE = 24;
 let pendingBMPsRequest = null;
@@ -83,6 +86,7 @@ export default {
     data: function () {
         return {
             message: '',
+            openBitmapId: null,
             visibleCount: BATCH_SIZE,
             automaticLoading: false,
             isLoading: false,
@@ -92,6 +96,7 @@ export default {
     components: {
         BmpCanvas,
         BmpDialog,
+        GalleryViewportItem,
     },
     watch: {
         message() {
@@ -176,6 +181,9 @@ export default {
         },
         hasMoreBMPs() {
             return this.visibleCount < this.getBMPs.length;
+        },
+        placeholderCount() {
+            return Math.max(0, Math.min(6, this.getBMPs.length - this.visibleCount));
         },
         visibleBMPs() {
             return this.getBMPs.slice(0, this.visibleCount);

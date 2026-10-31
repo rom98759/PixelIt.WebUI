@@ -15,6 +15,7 @@ function load(file, context) {
 (async () => {
     const observers = [];
     const context = {
+        window: { innerHeight: 800 },
         IntersectionObserver: class {
             constructor(callback) { this.callback = callback; this.targets = new Set(); observers.push(this); }
             observe(target) { this.targets.add(target); }
@@ -25,7 +26,7 @@ function load(file, context) {
     const component = load('src/components/GalleryViewportItem.vue', context);
     const items = Array.from({ length: 500 }, () => {
         const item = new Vue(component);
-        item.$el = { getBoundingClientRect: () => ({ height: 374 }) };
+        item.$el = { getBoundingClientRect: () => ({ height: 374, top: 5000, bottom: 5374 }) };
         component.mounted.call(item);
         return item;
     });
@@ -46,6 +47,11 @@ function load(file, context) {
     items[0].pinned = false;
     await Vue.nextTick();
     assert(!items[0].active, 'Release a pinned card once its dialog closes');
+    const immediate = new Vue(component);
+    immediate.$el = { getBoundingClientRect: () => ({ top: 200, bottom: 574, height: 374 }) };
+    component.mounted.call(immediate);
+    assert(immediate.active, 'Mount new nearby results before the first observer callback');
+    immediate.$destroy();
     items.forEach(item => item.$destroy());
     assert.equal(observers[0].targets.size, 0, 'Release observer targets on navigation/search');
 
@@ -73,7 +79,12 @@ function load(file, context) {
     assert.equal(bitmap.frames, null, 'Release parsed frames when a card unmounts');
     // Render the actual gallery template: filtering used to produce a negative
     // v-for count for placeholders, aborting Vue's render for fewer than 24 hits.
+    const scrollWindow = {
+        scrollY: 0,
+        scrollTo(options) { this.scrollY = options.top; this.lastScroll = options; },
+    };
     const galleryComponent = load('src/views/Gallery.vue', {
+        window: scrollWindow,
         actionFeedback: {}, notify() {}, BmpCanvas: {}, BmpDialog: {}, GalleryViewportItem: {},
     });
     const gallerySource = fs.readFileSync(path.join(__dirname, '../src/views/Gallery.vue'), 'utf8');
@@ -84,9 +95,11 @@ function load(file, context) {
     const gallery = new Vue({
         ...galleryComponent, ...compiled,
         beforeCreate() {
+            this.$vuetify = { application: { top: 64 } };
             this.$store = Vue.observable({ state: { bmpsFromAPI: records, socket: { isConnected: true } } });
         },
     });
+    gallery.$el = { getBoundingClientRect: () => ({ top: 160 - scrollWindow.scrollY }) };
     gallery.automaticLoading = true;
     const renderErrors = [];
     const previousErrorHandler = Vue.config.errorHandler;
@@ -106,9 +119,11 @@ function load(file, context) {
             ...Array.from({ length: 101 }, (_, id) => ({ id, name: `Bitmap ${id}` })));
         gallery.message = ''; await Vue.nextTick();
         gallery.visibleCount = 96;
+        scrollWindow.scrollY = 7000;
         gallery.message = '100'; await Vue.nextTick();
         gallery._render();
         assert.equal(gallery.visibleCount, 24, 'Search resets the batch after scrolling');
+        assert.equal(scrollWindow.scrollY, 88, 'Search resets deep scroll position before replacing results');
         assert.equal(gallery.visibleBMPs.length, 1);
         assert.equal(gallery.visibleBMPs[0].id, 100, 'Search includes entries not yet displayed');
         gallery.message = 'no results'; await Vue.nextTick(); gallery._render();
@@ -122,8 +137,13 @@ function load(file, context) {
             sizeX: String([8, 16, 32][id % 3]), sizeY: 8,
         })));
         gallery.visibleCount = 72;
+        scrollWindow.scrollY = 8000;
+        const revisionBeforeFilter = gallery.filterRevision;
         gallery.animationFilter = 'animated'; await Vue.nextTick(); gallery._render();
         assert.equal(gallery.visibleCount, 24, 'Changing the animation filter resets the batch');
+        assert.equal(scrollWindow.scrollY, 88, 'Reset deep scroll position to results below the app bar');
+        assert.equal(scrollWindow.lastScroll.behavior, 'instant', 'Do not animate through empty result space');
+        assert(gallery.filterRevision > revisionBeforeFilter, 'Recreate retained cards after filtering');
         assert.equal(gallery.getBMPs.length, 40);
         assert(gallery.getBMPs.every(bmp => bmp.animated));
         assert(gallery.hasMoreBMPs);
@@ -148,7 +168,9 @@ function load(file, context) {
         assert.deepEqual(Array.from(gallery.sizeFilters, option => option.value),
             ['all', '8x8', '8x16', '16x8', '32x8'], 'Size options are unique, sorted and include both dimensions');
         gallery.visibleCount = 72;
+        scrollWindow.scrollY = 6000;
         gallery.sizeFilter = '8x8'; await Vue.nextTick(); gallery._render();
+        assert.equal(scrollWindow.scrollY, 88, 'Size changes also reset deep scroll position');
         assert.equal(gallery.visibleCount, 24, 'Changing the size filter resets the batch');
         assert.equal(gallery.getBMPs.length, 27);
         assert(gallery.hasMoreBMPs);

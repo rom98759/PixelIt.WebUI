@@ -32,6 +32,11 @@ export default {
                 });
             }, { rootMargin: '1200px 0px' });
         }
+        // Mount nearby contents in the same render cycle after a filter reset,
+        // without waiting for the asynchronous observer notification.
+        const rect = this.$el.getBoundingClientRect();
+        this.nearby = rect.bottom >= -1200 && rect.top <= window.innerHeight + 1200;
+        this.updateContent();
         items.set(this.$el, this);
         observer.observe(this.$el);
     },

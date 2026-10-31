@@ -1,15 +1,19 @@
 <template>
     <v-container class="gallery app-page">
+        <v-sheet v-if="!isLoading" class="gallery-filters" :style="{ top: ($vuetify.application.top + 8) + 'px' }" rounded elevation="2">
+            <v-row dense>
+                <v-col cols="12" md="6">
+                    <v-text-field v-model="message" prepend-inner-icon="mdi-magnify" single-line outlined filled hide-details auto-grow label="Search for name or ID" type="text"></v-text-field>
+                </v-col>
+                <v-col cols="6" md="3">
+                    <v-select v-model="animationFilter" :items="animationFilters" label="Animation" prepend-inner-icon="mdi-animation-play" outlined filled hide-details></v-select>
+                </v-col>
+                <v-col cols="6" md="3">
+                    <v-select v-model="sizeFilter" :items="sizeFilters" label="Size" prepend-inner-icon="mdi-image-size-select-large" outlined filled hide-details></v-select>
+                </v-col>
+            </v-row>
+        </v-sheet>
         <v-row>
-            <v-col v-if="!isLoading" cols="12" md="6">
-                <v-text-field v-model="message" prepend-inner-icon="mdi-magnify" single-line outlined filled hide-details auto-grow label="Search for name or ID" type="text"></v-text-field>
-            </v-col>
-            <v-col v-if="!isLoading" cols="6" md="3">
-                <v-select v-model="animationFilter" :items="animationFilters" label="Animation" prepend-inner-icon="mdi-animation-play" outlined filled hide-details></v-select>
-            </v-col>
-            <v-col v-if="!isLoading" cols="6" md="3">
-                <v-select v-model="sizeFilter" :items="sizeFilters" label="Size" prepend-inner-icon="mdi-image-size-select-large" outlined filled hide-details></v-select>
-            </v-col>
             <v-col v-for="n in (isLoading ? 6 : 0)" :key="'loading-' + n" cols="6" md="4" lg="2">
                 <v-skeleton-loader type="image, article" aria-label="Loading gallery" />
             </v-col>
@@ -17,7 +21,7 @@
                 Could not load the gallery.
                 <v-btn text @click="loadBMPs">Retry</v-btn>
             </v-col>
-            <v-col v-for="bmp in visibleBMPs" :key="bmp.id" cols="6" lg="2">
+            <v-col v-for="bmp in visibleBMPs" :key="filterRevision + ':' + bmp.id" cols="6" lg="2">
                 <GalleryViewportItem :pinned="openBitmapId === bmp.id">
                     <v-card class="ui-panel gallery-card" elevation="2">
                         <div class="text-center">
@@ -92,6 +96,7 @@ export default {
     data: function () {
         return {
             message: '',
+            filterRevision: 0,
             animationFilter: 'all',
             sizeFilter: 'all',
             animationFilters: [
@@ -113,13 +118,13 @@ export default {
     },
     watch: {
         message() {
-            this.visibleCount = BATCH_SIZE;
+            this.resetResults();
         },
         animationFilter() {
-            this.visibleCount = BATCH_SIZE;
+            this.resetResults();
         },
         sizeFilter() {
-            this.visibleCount = BATCH_SIZE;
+            this.resetResults();
         },
         visibleBMPs() {
             // Recheck after each batch, even when the trigger stays in a tall viewport.
@@ -127,6 +132,19 @@ export default {
         },
     },
     methods: {
+        resetResults() {
+            this.visibleCount = BATCH_SIZE;
+            // Drop retained viewport state when a bitmap moves within filtered results.
+            this.filterRevision++;
+            if (!this.$el || typeof window === 'undefined') return;
+            const top = Math.max(0, this.$el.getBoundingClientRect().top + window.scrollY
+                - this.$vuetify.application.top - 8);
+            if (window.scrollY > top) {
+                // Move before Vue patches the shorter list; smooth scrolling would
+                // temporarily leave the viewport below the new results.
+                window.scrollTo({ top, behavior: 'instant' });
+            }
+        },
         observeLoadMore() {
             if (!this.loadMoreObserver || this._isBeingDestroyed || this._isDestroyed) return;
             this.loadMoreObserver.disconnect();
@@ -251,6 +269,17 @@ function getBMPsFromAPI() {
 </script>
 
 <style scoped>
+.gallery {
+    overflow-anchor: none;
+}
+
+.gallery-filters {
+    position: sticky;
+    z-index: 4;
+    padding: 12px;
+    margin-bottom: 20px;
+}
+
 .gallery-card {
     animation: gallery-appear 160ms ease-out;
 }
